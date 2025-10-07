@@ -1,0 +1,8 @@
+# Python cache
+__pycache__/
+
+# Experiment outputs
+EXPERIMENTS/
+
+# Temporary testing folders
+testing/
