@@ -2,6 +2,5 @@
 __pycache__/
 # Experiment outputs
 EXPERIMENTS/
-
 # Temporary testing folders
 testing/
