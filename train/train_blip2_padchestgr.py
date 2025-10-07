@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Dict, Any, List
 import sys, os
 
-# allow "python -m train.train_blip2_padchest" from repo root
+# allow "python -m train.train_blip2_padchestgr" from repo root
 sys.path.append(os.path.abspath(os.path.join(os.path.abspath(os.getcwd()), os.pardir)))
 
 from transformers import Trainer, TrainingArguments
@@ -95,6 +95,7 @@ class GenEvalTrainer(Trainer):
         bs = self.args.per_device_eval_batch_size
         prompt = DEFAULT_PROMPTS[lang]
 
+        # If model is wrapped, take its .device; else TrainingArguments' device
         device = getattr(model, "device", self.args.device)
 
         for i in range(0, len(ds), bs):
@@ -105,7 +106,6 @@ class GenEvalTrainer(Trainer):
             inputs = processor(images=images, text=[prompt]*len(images), return_tensors="pt", padding=True)
             inputs = {k: v.to(device) for k, v in inputs.items()}
 
-            # greedy + some constraints; adjust if you prefer beams
             gen_ids = model.model.generate(
                 **inputs,
                 do_sample=False,
@@ -152,16 +152,30 @@ def main():
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--seed", type=int, default=1337)
     parser.add_argument("--fp16", action="store_true")
+    parser.add_argument("--bf16", action="store_true")
+    parser.add_argument("--no_freeze_vision", action="store_true")
+    parser.add_argument("--no_grad_ckpt", action="store_true")
     args = parser.parse_args()
 
     torch.manual_seed(args.seed); np.random.seed(args.seed)
 
-    # Datasets (re-using your existing paths dict)
+    # Datasets
     train_ds = PadChestDataset(DICT_CSV_PADCHESTGR_PATH["train"], lang=args.lang)
     val_ds = PadChestDataset(DICT_CSV_PADCHESTGR_PATH["validation"], lang=args.lang)
 
-    # Model wrapper (8-bit BLIP-2 + optional LoRA if no adapters present)
-    cfg = Blip2PadChestConfig(checkpoint=args.checkpoint)
+    # Model (no LoRA)
+    dtype = "fp32"
+    if args.bf16:
+        dtype = "bf16"
+    elif args.fp16:
+        dtype = "fp16"
+
+    cfg = Blip2PadChestConfig(
+        checkpoint=args.checkpoint,
+        freeze_vision=not args.no_freeze_vision,
+        gradient_checkpointing=not args.no_grad_ckpt,
+        dtype=dtype,
+    )
     model_wrap = Blip2PadChest(cfg)
 
     data_collator = Blip2Collator(model_wrap.processor, args.lang)
@@ -173,7 +187,6 @@ def main():
         learning_rate=args.lr,
         logging_steps=50,
         save_total_limit=3,
-        fp16=args.fp16,
         report_to=["none"],
         remove_unused_columns=False,
         save_safetensors=False,
@@ -184,6 +197,8 @@ def main():
         weight_decay=0.01,
         gradient_accumulation_steps=1,
         save_strategy="epoch",
+        fp16=args.fp16,
+        bf16=args.bf16,
     )
 
     training_args = TrainingArguments(**common_kwargs, **opt_kwargs)
