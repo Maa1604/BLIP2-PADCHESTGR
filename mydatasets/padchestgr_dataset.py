@@ -9,7 +9,7 @@ from paths import IMAGES_PADCHESTGR_PATH  # keep your existing constant
 class PadChestDataset(Dataset):
     """
     ROI-free PadChest dataset for BLIP-2 baseline.
-    Returns dicts with PIL image + final text.
+    Returns dicts with PIL image + final TEXT.
     """
     def __init__(self, csv_path: str, lang: str = "es", image_root: Optional[str] = None):
         assert lang in {"es", "en"}
