@@ -1,0 +1,22 @@
+# Core
+transformers>=4.41.0
+accelerate>=0.30.0
+peft>=0.10.0
+bitsandbytes>=0.43.0     # opcional; solo si usas 8/4-bit
+torchvision>=0.16.0
+# torch: instala la versión que corresponda a tu CUDA (desde PyPI o pip wheels oficiales)
+
+# Data / utils
+datasets>=2.19.0
+pandas>=2.0.0
+Pillow>=10.0.0
+scikit-learn>=1.3.0
+numpy>=1.24.0
+
+# Tokenizers & text
+sentencepiece>=0.1.99
+protobuf<5.0.0
+
+# (Tus scorers ya existen en myscorers/)
+rouge-score>=0.1.2
+bert-score>=0.3.13
