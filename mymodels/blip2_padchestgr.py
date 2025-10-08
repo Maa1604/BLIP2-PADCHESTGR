@@ -10,11 +10,11 @@ def build_model_and_processor():
     Returns: (model, processor)
     """
     # Processor
-    processor = AutoProcessor.from_pretrained("Salesforce/blip2-opt-2.7b")
+    processor = AutoProcessor.from_pretrained("fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray")
 
     # Base model (8-bit, sharded)
     model = Blip2ForConditionalGeneration.from_pretrained(
-        "ybelkada/blip2-opt-2.7b-fp16-sharded",
+        "fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray",
         device_map="auto",
         load_in_8bit=True
     )
@@ -29,5 +29,7 @@ def build_model_and_processor():
     )
     model = get_peft_model(model, lora_cfg)
     model.print_trainable_parameters()
+
+    exit()
 
     return model, processor

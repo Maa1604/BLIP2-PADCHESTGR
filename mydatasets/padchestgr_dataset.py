@@ -14,12 +14,10 @@ class PadChestDataset(Dataset):
     Returns dicts with PIL image + final TEXT.
     Also provides a build_collate_fn(processor) to batch examples.
     """
-    def __init__(self, csv_path: str, lang: str = "es", image_root: Optional[str] = None):
-        assert lang in {"es", "en"}
-        self.lang = lang
+    def __init__(self, csv_path: str, image_root: Optional[str] = None):
         self.df = pd.read_csv(csv_path)
         self.image_root = image_root or IMAGES_PADCHESTGR_PATH
-        self.text_col = "report_es" if lang == "es" else "report_en"
+        self.text_col = "report_en"
 
         # minimal cleaning
         self.df = self.df.dropna(subset=["ImageID", self.text_col]).reset_index(drop=True)
