@@ -1,15 +1,18 @@
-import pandas as pd
 import os
+from typing import Optional, Any, Dict, List
+
+import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset
-from typing import Optional
 
 from paths import IMAGES_PADCHESTGR_PATH  # keep your existing constant
+
 
 class PadChestDataset(Dataset):
     """
     ROI-free PadChest dataset for BLIP-2 baseline.
     Returns dicts with PIL image + final TEXT.
+    Also provides a build_collate_fn(processor) to batch examples.
     """
     def __init__(self, csv_path: str, lang: str = "es", image_root: Optional[str] = None):
         assert lang in {"es", "en"}
@@ -35,3 +38,37 @@ class PadChestDataset(Dataset):
             "image_id": row["ImageID"],
             "study_id": row.get("StudyID", ""),
         }
+
+    # ---------- NEW: collate fn builder ----------
+    def build_collate_fn(self, processor: Any):
+        """
+        Returns a callable suitable for HuggingFace Trainer's data_collator.
+        It uses the provided processor to batch images + texts and create labels.
+        """
+        def _collate(examples: List[Dict[str, Any]]) -> Dict[str, Any]:
+            images = [ex["image"] for ex in examples]
+            texts = [ex["text"] for ex in examples]
+
+            batch = processor(
+                images=images,
+                text=texts,
+                padding=True,
+                return_tensors="pt"
+            )
+
+            # Create labels from input_ids, mask padding with -100
+            input_ids = batch["input_ids"]
+            labels = input_ids.clone()
+
+            pad_id = processor.tokenizer.pad_token_id
+            if pad_id is None:
+                # Ensure pad token exists (edge case)
+                processor.tokenizer.pad_token = processor.tokenizer.eos_token
+                pad_id = processor.tokenizer.pad_token_id
+
+            labels[labels == pad_id] = -100
+            batch["labels"] = labels
+
+            return batch
+
+        return _collate

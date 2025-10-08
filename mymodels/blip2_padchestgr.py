@@ -1,74 +1,33 @@
-import torch
-import torch.nn as nn
-from dataclasses import dataclass
-from transformers import Blip2ForConditionalGeneration, Blip2Processor
+# mymodels/blip2_lora.py
 
-DEFAULT_PROMPTS = {
-    "es": "Eres un asistente de radiología. Genera las conclusiones de la radiografía de tórax en español:\n",
-    "en": "You are a radiology assistant. Generate chest X-ray findings in English:\n",
-}
+from transformers import AutoProcessor, Blip2ForConditionalGeneration
+from peft import LoraConfig, get_peft_model
 
-@dataclass
-class Blip2PadChestConfig:
-    checkpoint: str = "fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray"
-    freeze_vision: bool = True        # often helpful to freeze the vision tower
-    gradient_checkpointing: bool = True  # reduce memory during full FT
-    dtype: str = "fp16"               # "fp16" | "bf16" | "fp32"
 
-class Blip2PadChest(nn.Module):
+def build_model_and_processor():
     """
-    Plain BLIP-2 wrapper (no LoRA):
-      - Loads BLIP-2 with device_map='auto'
-      - Optionally freezes the vision encoder
-      - Exposes a Blip2Processor for training and generation
+    Loads BLIP-2 + LoRA and its processor.
+    Returns: (model, processor)
     """
-    def __init__(self, cfg: Blip2PadChestConfig):
-        super().__init__()
-        self.cfg = cfg
+    # Processor
+    processor = AutoProcessor.from_pretrained("Salesforce/blip2-opt-2.7b")
 
-        # Choose dtype
-        if cfg.dtype == "bf16":
-            torch_dtype = torch.bfloat16
-        elif cfg.dtype == "fp16":
-            torch_dtype = torch.float16
-        else:
-            torch_dtype = torch.float32
+    # Base model (8-bit, sharded)
+    model = Blip2ForConditionalGeneration.from_pretrained(
+        "ybelkada/blip2-opt-2.7b-fp16-sharded",
+        device_map="auto",
+        load_in_8bit=True
+    )
 
-        # Processor + Model (trainable weights; no 8-bit)
-        self.processor: Blip2Processor = Blip2Processor.from_pretrained(cfg.checkpoint)
-        self.model: Blip2ForConditionalGeneration = Blip2ForConditionalGeneration.from_pretrained(
-            cfg.checkpoint,
-            device_map="auto",
-            torch_dtype=torch_dtype,
-        )
+    # Apply LoRA
+    lora_cfg = LoraConfig(
+        r=8,
+        lora_alpha=16,
+        lora_dropout=0.01,
+        bias="none",
+        target_modules=["q_proj", "k_proj"]
+    )
+    model = get_peft_model(model, lora_cfg)
+    model.print_trainable_parameters()
 
-        # Optional: freeze vision encoder
-        if cfg.freeze_vision and hasattr(self.model, "vision_model"):
-            for p in self.model.vision_model.parameters():
-                p.requires_grad = False
-
-        # Optional: gradient checkpointing to save memory
-        if cfg.gradient_checkpointing and hasattr(self.model, "gradient_checkpointing_enable"):
-            try:
-                self.model.gradient_checkpointing_enable()
-            except Exception:
-                pass
-
-        # Log trainable parameters
-        try:
-            trainable = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
-            total = sum(p.numel() for p in self.model.parameters())
-            print(f"[INFO] Trainable params: {trainable}/{total} ({100.0*trainable/total:.2f}%)")
-            if cfg.freeze_vision and hasattr(self.model, "vision_model"):
-                print("[INFO] Vision encoder is frozen.")
-        except Exception:
-            pass
-
-    @property
-    def device(self):
-        # Returns first param's device for convenience
-        return next(self.model.parameters()).device
-
-    def forward(self, **batch):
-        # batch contains: pixel_values, input_ids, attention_mask, labels
-        return self.model(**batch)
+    return model, processor
