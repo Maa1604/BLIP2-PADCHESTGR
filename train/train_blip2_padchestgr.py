@@ -8,8 +8,8 @@ import torch
 from torch.utils.data import random_split
 from transformers import Trainer, TrainingArguments
 
-from padchestgr_dataset import PadChestDataset
-from mymodels.blip2_lora import build_model_and_processor
+from mydatasets.padchestgr_dataset import PadChestDataset
+from mymodels.blip2_padchestgr import build_model_and_processor
 
 
 def seed_everything(seed: int = 42):
