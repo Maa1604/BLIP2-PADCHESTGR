@@ -1,11 +1,12 @@
 # train/train_blip2.py
 
 import os
+import sys
 import random
 from typing import Optional
+sys.path.append(os.path.abspath(os.path.join(os.path.abspath(os.getcwd()), os.pardir)))
 
 import torch
-from torch.utils.data import random_split
 from transformers import Trainer, TrainingArguments
 
 from mydatasets.padchestgr_dataset import PadChestDataset
@@ -24,7 +25,7 @@ def main():
     # --------------------------
     # Config (edit as you like)
     # --------------------------
-    output_dir = os.environ.get("OUTPUT_DIR", "./EXPERIMENTS")
+    output_dir = os.environ.get("OUTPUT_DIR", "../EXPERIMENTS")
     num_train_epochs = int(os.environ.get("EPOCHS", "5"))
     per_device_train_batch_size = int(os.environ.get("BATCH_SIZE", "4"))
     learning_rate = float(os.environ.get("LR", "2e-4"))

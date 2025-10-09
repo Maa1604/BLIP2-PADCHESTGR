@@ -1,7 +1,7 @@
 # mymodels/blip2_lora.py
 
 from transformers import AutoProcessor, Blip2ForConditionalGeneration
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model, PeftModel
 
 
 def build_model_and_processor():
@@ -18,8 +18,17 @@ def build_model_and_processor():
         device_map="auto",
         load_in_8bit=True
     )
+    #print(model.peft_config) #ver el lora anterior
+    output_file = "blip2_parameters.txt"
 
-    # Apply LoRA
+    with open(output_file, "w") as f:
+        for name, param in model.named_parameters():
+            num_params = param.numel()
+            f.write(f"{name:80} | shape={tuple(param.shape)} | params={num_params:,} | requires_grad={param.requires_grad}\n")
+
+    print(f"✅ Parameter list saved to {output_file}")
+    
+    #Apply LoRA
     lora_cfg = LoraConfig(
         r=8,
         lora_alpha=16,
