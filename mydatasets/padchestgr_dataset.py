@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 
 from paths import IMAGES_PADCHESTGR_PATH  # keep your existing constant
 
+#https://huggingface.co/docs/transformers/model_doc/blip-2#transformers.Blip2Model.forward
 
 class PadChestDataset(Dataset):
     """
