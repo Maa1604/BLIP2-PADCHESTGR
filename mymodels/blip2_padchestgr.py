@@ -1,7 +1,7 @@
 from transformers import AutoProcessor, Blip2ForConditionalGeneration
 from peft import LoraConfig, get_peft_model
 import torch
-from .model_utility import count_parameters
+from .model_utility import count_parameters, save_parameter_info
 
 
 def build_model_and_processor():
@@ -53,13 +53,7 @@ def build_model_and_processor():
 
     count_parameters(model)
 
-    output_file = "blip2_parameters.txt"
-
-    with open(output_file, "w") as f:
-        for name, param in model.named_parameters():
-            num_params = param.numel()
-            f.write(f"{name:80} | shape={tuple(param.shape)} | params={num_params:,} | requires_grad={param.requires_grad}\n")
-
+    save_parameter_info(model, output_file="blip2_parameters.txt")
 
     exit()
 

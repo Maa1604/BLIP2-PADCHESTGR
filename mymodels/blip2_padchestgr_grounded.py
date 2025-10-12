@@ -1,7 +1,7 @@
-from region_aware_model import RegionBlip2ForConditionalGeneration
+from .region_aware_model import RegionBlip2ForConditionalGeneration
 from transformers import AutoProcessor
 import torch
-from .model_utility import count_parameters
+from .model_utility import count_parameters, save_parameter_info
 
 def build_model_and_processor():
     """
@@ -28,6 +28,7 @@ def build_model_and_processor():
     model.language_projection.requires_grad_(True)
     model.region_token_embed.requires_grad_(True)  # <— add this for W
     count_parameters(model)
-
+    save_parameter_info(model, output_file="blip2_grounded_parameters.txt")
+    exit()
 
     return model, processor
