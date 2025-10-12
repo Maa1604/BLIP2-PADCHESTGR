@@ -1,6 +1,7 @@
 from region_aware_model import RegionBlip2ForConditionalGeneration
 from transformers import AutoProcessor
 import torch
+from .model_utility import count_parameters
 
 def build_model_and_processor():
     """
@@ -18,11 +19,15 @@ def build_model_and_processor():
         device_map="auto",
         torch_dtype=torch.bfloat16,  # training-friendly
     )
+    count_parameters(model)
+
 
     # Unfreeze trainable parts
     model.query_tokens.requires_grad_(True)
     model.qformer.requires_grad_(True)
     model.language_projection.requires_grad_(True)
     model.region_token_embed.requires_grad_(True)  # <— add this for W
+    count_parameters(model)
+
 
     return model, processor
