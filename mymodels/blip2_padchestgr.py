@@ -27,7 +27,7 @@ def build_model_and_processor():
     Returns: (model, processor)
     """
     # Processor
-    processor = AutoProcessor.from_pretrained("fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray")
+    processor = AutoProcessor.from_pretrained("fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray") #TODO: CHECK THIS
 
     # Base model (8-bit, sharded)
     model = Blip2ForConditionalGeneration.from_pretrained(
