@@ -35,8 +35,6 @@ def build_model_and_processor():
 
     save_parameter_info(model, output_file="blip2_parameters.txt")
 
-    exit()
-
     return model, processor
 
 def build_grounding_model_and_processor():
@@ -65,6 +63,5 @@ def build_grounding_model_and_processor():
     model.region_token_embed.requires_grad_(True)  # <— add this for W
     count_parameters(model)
     save_parameter_info(model, output_file="blip2_grounded_parameters.txt")
-    exit()
 
     return model, processor

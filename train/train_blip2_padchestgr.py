@@ -71,11 +71,10 @@ def main():
         learning_rate=learning_rate,
         save_steps=save_steps,
         save_total_limit=2,
-        fp16=True,
-        logging_steps=50,
-        evaluation_strategy="steps" if eval_ds is not None else "no",
+        # fp16=True,
         eval_steps=save_steps,
         remove_unused_columns=False,  # important for vision-text models
+        report_to="none",
     )
 
     # Use the dataset-provided collate

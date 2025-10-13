@@ -6,6 +6,7 @@ import pandas as pd
 from PIL import Image
 import torch
 from torch.utils.data import Dataset
+import numpy as np
 
 from paths import IMAGES_PADCHESTGR_PATH  # keep your existing constant
 
@@ -44,7 +45,60 @@ def _parse_and_round_boxes_0_100(boxes_field: str) -> List[int]:
                         out.append(0)
     return out
 
+def _open_image_as_8bit_rgb(path: str, p: float = 99.0) -> Image.Image:
+    """
+    Open an image and normalize it to 8-bit RGB using a p-th percentile cap.
 
+    Steps:
+      1) read with PIL
+      2) convert to float32 numpy array
+      3) divide by p-th percentile
+      4) clip to [0, 1]
+      5) scale to [0, 255] uint8
+      6) ensure 3-channel RGB (stack if needed)
+
+    Notes:
+      - Works with 8/16-bit, grayscale or multi-channel inputs.
+      - If input already has 3 channels, we normalize per-array (single scale)
+        and keep it 3-channel by reusing the original channels after scaling.
+        If it's 2D or single-channel, we stack to RGB.
+    """
+    img = Image.open(path)
+    arr = np.array(img).astype(np.float32)
+
+    # Handle completely empty or degenerate arrays gracefully
+    if arr.size == 0 or not np.isfinite(arr).any():
+        # Fallback: simple RGB conversion via PIL
+        return img.convert("RGB")
+
+    # Compute percentile ignoring NaNs
+    pth = np.nanpercentile(arr, p)
+    if not np.isfinite(pth) or pth <= 0:
+        pth = 1.0
+
+    arr = np.clip(arr / (pth + 1e-8), 0.0, 1.0)
+    arr8 = (arr * 255.0).astype(np.uint8)
+
+    # Ensure 3-channel output
+    if arr8.ndim == 2:
+        # H x W -> H x W x 3
+        rgb = np.stack([arr8, arr8, arr8], axis=-1)
+    elif arr8.ndim == 3:
+        # If it already has channels:
+        if arr8.shape[-1] == 3:
+            rgb = arr8  # keep as-is after normalization
+        elif arr8.shape[-1] == 4:
+            # Drop alpha; convert to RGB
+            rgb = arr8[..., :3]
+        else:
+            # Unexpected channel count -> collapse to grayscale then stack
+            g = arr8.mean(axis=-1).astype(np.uint8)
+            rgb = np.stack([g, g, g], axis=-1)
+    else:
+        # Fallback: convert via PIL and retry
+        return img.convert("RGB")
+
+    return Image.fromarray(rgb, mode="RGB")
 class PadChestDataset(Dataset):
     """
     - Normal (grounded=False): returns PIL image + report text.
@@ -66,7 +120,8 @@ class PadChestDataset(Dataset):
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
         image_path = os.path.join(self.image_root, row["ImageID"])
-        image = Image.open(image_path).convert("RGB")
+        image = _open_image_as_8bit_rgb(image_path)
+        # image = Image.open(image_path).convert("RGB")
         text = str(row[self.text_col]).strip()
 
         ex = {
@@ -81,6 +136,8 @@ class PadChestDataset(Dataset):
             regions = _parse_and_round_boxes_0_100(str(row.get("boxes", "")))
             ex["regions"] = regions  # flat list [x1,y1,x2,y2, x1,y1,x2,y2, ...] as ints
 
+        # print(ex)
+        # exit()
         return ex
 
     # ---------- collate fn builder ----------
