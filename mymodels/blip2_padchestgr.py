@@ -10,17 +10,21 @@ def build_model_and_processor():
     Returns: (model, processor)
     """
     # Processor
-    processor = Blip2Processor.from_pretrained("fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray")
+    processor = Blip2Processor.from_pretrained("Salesforce/blip2-opt-2.7b")
 
     # Base model (8-bit, sharded)
     model = Blip2ForConditionalGeneration.from_pretrained(
-        "fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray",   #Salesforce/blip2-opt-2.7b
+        "Salesforce/blip2-opt-2.7b",   #Salesforce/blip2-opt-2.7b
         device_map="auto",
         dtype=torch.bfloat16, #hace falta para poder entrenar (only Tensors of floating point dtype can require gradients)
         # load_in_8bit=True
     )
     count_parameters(model)
 
+
+    # --- 0) Freeze the whole model ---
+    # (Works for all parameters, including nested modules.)
+    model.requires_grad_(False)
 
     # 1) Unfreeze the requested parts
     # query_tokens is a Parameter, not a module
@@ -42,7 +46,7 @@ def build_grounding_model_and_processor():
     Loads Region-BLIP-2 + LoRA-ready and its processor.
     Returns: (model, processor)
     """
-    ckpt = "fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray"
+    ckpt = "Salesforce/blip2-opt-2.7b"   #fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray
 
     # Processor (tokenizer + image processor)
     processor = Blip2Processor.from_pretrained(ckpt)
@@ -55,6 +59,10 @@ def build_grounding_model_and_processor():
     )
     count_parameters(model)
 
+
+    # --- 0) Freeze the whole model ---
+    # (Works for all parameters, including nested modules.)
+    model.requires_grad_(False)
 
     # Unfreeze trainable parts
     model.query_tokens.requires_grad_(True)
