@@ -1,9 +1,6 @@
-# train/train_blip2.py
-
 import os
 import sys
 import random
-from typing import Optional
 sys.path.append(os.path.abspath(os.path.join(os.path.abspath(os.getcwd()), os.pardir)))
 
 import torch
