@@ -1,15 +1,15 @@
 import os
 import sys
 import random
+import importlib
+
 sys.path.append(os.path.abspath(os.path.join(os.path.abspath(os.getcwd()), os.pardir)))
 
 import torch
 from transformers import Trainer, TrainingArguments
 
 from mydatasets.padchestgr_dataset import PadChestDataset
-from mymodels.blip2_padchestgr import build_model_and_processor
-# from mymodels.blip2_padchestgr_grounded import build_model_and_processor
-
+from mymodels.blip2_padchestgr import build_model_and_processor, build_grounding_model_and_processor
 from paths import DICT_CSV_PADCHESTGR_PATH
 
 
@@ -29,20 +29,37 @@ def main():
     learning_rate = float(os.environ.get("LR", "2e-4"))
     save_steps = int(os.environ.get("SAVE_STEPS", "500"))
 
+    # Simple switch:
+    # GROUNDED=0 → normal BLIP-2
+    # GROUNDED=1 → region-aware BLIP-2
+    grounded = 0
+
     seed_everything(42)
 
     # --------------------------
     # Data
     # --------------------------
-    train_ds = PadChestDataset(csv_path=DICT_CSV_PADCHESTGR_PATH["train"])
-    eval_ds = PadChestDataset(csv_path=DICT_CSV_PADCHESTGR_PATH["validation"])
-    test_ds = PadChestDataset(csv_path=DICT_CSV_PADCHESTGR_PATH["test"])
-
+    train_ds = PadChestDataset(
+        csv_path=DICT_CSV_PADCHESTGR_PATH["train"],
+        grounded=grounded
+    )
+    eval_ds = PadChestDataset(
+        csv_path=DICT_CSV_PADCHESTGR_PATH["validation"],
+        grounded=grounded
+    )
+    test_ds = PadChestDataset(
+        csv_path=DICT_CSV_PADCHESTGR_PATH["test"],
+        grounded=grounded
+    )
 
     # --------------------------
     # Model + Processor
     # --------------------------
-    model, processor = build_model_and_processor()
+    if grounded:
+        # Use your grounded builder
+        model, processor = build_grounding_model_and_processor()
+    else:
+        model, processor = build_model_and_processor()
 
     # --------------------------
     # Training
@@ -61,12 +78,16 @@ def main():
         remove_unused_columns=False,  # important for vision-text models
     )
 
+    # Use the dataset-provided collate
+    data_collator = train_ds.build_collate_fn(processor)
+
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
-        tokenizer=processor.tokenizer
+        tokenizer=processor.tokenizer,
+        data_collator=data_collator,
     )
 
     trainer.train()

@@ -4,6 +4,8 @@ from typing import Optional, Union
 from transformers import Blip2ForConditionalGeneration, Blip2Config
 from transformers.modeling_outputs import BaseModelOutput
 
+
+#https://huggingface.co/docs/transformers/model_doc/blip-2#transformers.Blip2Model.forward
 class RegionBlip2ForConditionalGeneration(Blip2ForConditionalGeneration):
     """
     BLIP-2 with extra 'region tokens' that are concatenated to the query tokens for the Q-Former.
