@@ -17,7 +17,7 @@ def build_model_and_processor():
     model = RegionBlip2ForConditionalGeneration.from_pretrained(
         ckpt,
         device_map="auto",
-        torch_dtype=torch.bfloat16,  # training-friendly
+        dtype=torch.bfloat16,  # training-friendly
     )
     count_parameters(model)
 
