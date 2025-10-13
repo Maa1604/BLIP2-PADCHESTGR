@@ -1,5 +1,5 @@
 from .region_aware_model import RegionBlip2ForConditionalGeneration
-from transformers import AutoProcessor
+from transformers import Blip2Processor
 import torch
 from .model_utility import count_parameters, save_parameter_info
 
@@ -11,7 +11,7 @@ def build_model_and_processor():
     ckpt = "fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray"
 
     # Processor (tokenizer + image processor)
-    processor = AutoProcessor.from_pretrained(ckpt)
+    processor = Blip2Processor.from_pretrained(ckpt)
 
     # Our subclass can still load the HF checkpoint; extra params (region_token_embed) init randomly
     model = RegionBlip2ForConditionalGeneration.from_pretrained(

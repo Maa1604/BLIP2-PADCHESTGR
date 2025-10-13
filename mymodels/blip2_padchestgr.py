@@ -1,5 +1,4 @@
-from transformers import AutoProcessor, Blip2ForConditionalGeneration
-from peft import LoraConfig, get_peft_model
+from transformers import Blip2Processor, Blip2ForConditionalGeneration
 import torch
 from .model_utility import count_parameters, save_parameter_info
 
@@ -10,7 +9,7 @@ def build_model_and_processor():
     Returns: (model, processor)
     """
     # Processor
-    processor = AutoProcessor.from_pretrained("fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray") #TODO: CHECK THIS
+    processor = Blip2Processor.from_pretrained("fatehmujtaba/blip2-opt-2.7b-for-Chest-Xray")
 
     # Base model (8-bit, sharded)
     model = Blip2ForConditionalGeneration.from_pretrained(
@@ -19,26 +18,6 @@ def build_model_and_processor():
         dtype=torch.bfloat16, #hace falta para poder entrenar (only Tensors of floating point dtype can require gradients)
         # load_in_8bit=True
     )
-    #print(model.peft_config) #ver el lora anterior
-    # output_file = "blip2_parameters.txt"
-
-    # with open(output_file, "w") as f:
-    #     for name, param in model.named_parameters():
-    #         num_params = param.numel()
-    #         f.write(f"{name:80} | shape={tuple(param.shape)} | params={num_params:,} | requires_grad={param.requires_grad}\n")
-
-    # print(f"✅ Parameter list saved to {output_file}")
-    
-    #Apply LoRA
-    # lora_cfg = LoraConfig(
-    #     r=8,
-    #     lora_alpha=16,
-    #     lora_dropout=0.01,
-    #     bias="none",
-    #     target_modules=["qformer.query_tokens", "language_model"]
-    # )
-    # model = get_peft_model(model, lora_cfg)
-    # Count total parameters
     count_parameters(model)
 
 
