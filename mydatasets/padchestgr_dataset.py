@@ -113,6 +113,12 @@ class PadChestDataset(Dataset):
             regions = _parse_and_round_boxes_0_100(str(row.get("boxes", "")))
             ex["regions"] = regions  # flat list [x1,y1,x2,y2, ...] as ints
 
+        # print(f"image: {ex['image']}")
+        # print(f"text: {ex['text']}")
+        # print(f"image_id: {ex['image_id']}")
+        # print(f"study_id: {ex['study_id']}")
+        # print(f"regions: {ex.get('regions', '')}")
+
         return ex
 
     # ---------- collate fn builder ----------

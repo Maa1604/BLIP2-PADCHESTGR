@@ -3,6 +3,8 @@ import torch.nn as nn
 from typing import Optional, Union
 from transformers import Blip2ForConditionalGeneration, Blip2Config
 from transformers.modeling_outputs import BaseModelOutput
+from transformers.models.blip_2.modeling_blip_2 import Blip2ForConditionalGenerationModelOutput
+
 
 
 #https://huggingface.co/docs/transformers/model_doc/blip-2#transformers.Blip2Model.forward
@@ -165,7 +167,7 @@ class RegionBlip2ForConditionalGeneration(Blip2ForConditionalGeneration):
             loss = outputs.loss
             logits = outputs.logits
 
-        return type(self).config_class.model_type_outputs["Blip2ForConditionalGenerationModelOutput"](
+        return Blip2ForConditionalGenerationModelOutput(
             loss=loss,
             logits=logits,
             vision_outputs=vision_outputs,

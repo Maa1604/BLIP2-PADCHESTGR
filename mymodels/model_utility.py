@@ -25,4 +25,4 @@ def save_parameter_info(model, output_file="blip2_parameters.txt"):
                 f"params={num_params:,} | requires_grad={param.requires_grad}\n"
             )
 
-    print(f"Parameter information saved to {output_file}. Exiting now.")
+    print(f"Parameter information saved to {output_file}.")

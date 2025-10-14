@@ -16,8 +16,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.abspath(os.getcwd()), os.pa
 from myscorers.bleu.bleu import Bleu
 from myscorers.rouge.rouge import Rouge
 from myscorers.bertscore.bertscore import BertScorer
-from myscorers.chexbert.chexbert import myF1ChexBert
-from myscorers.myradgraph.myradgraph import myRadGraph
+# from myscorers.chexbert.chexbert import myF1ChexBert
+# from myscorers.myradgraph.myradgraph import myRadGraph
 
 from paths import DICT_CSV_PADCHESTGR_PATH
 
@@ -37,8 +37,6 @@ parser = argparse.ArgumentParser(description="Train BLIP-2 / Region-BLIP-2 on Pa
 
 parser.add_argument('--exp_name', type=str, required=True, help='Experiment name.')
 parser.add_argument('--grounded', action='store_true', help='Use Region-BLIP-2 with region_input_ids.')
-parser.add_argument('--train_csv', type=str, required=True, help='Path to training CSV.')
-parser.add_argument('--val_csv', type=str, required=True, help='Path to validation/test CSV.')
 parser.add_argument('--epochs', type=int, default=30)
 parser.add_argument('--batch_size', type=int, default=4)
 parser.add_argument('--accumulate_grad_batches', type=int, default=32)
@@ -57,10 +55,8 @@ args = parser.parse_args()
 print("*" * 20)
 print("exp_name:", args.exp_name)
 print("grounded:", args.grounded)
-print("train_csv:", args.train_csv)
-print("val_csv:", args.val_csv)
 print("epochs:", args.epochs)
-print("batch_size:", atworgs.batch_size)
+print("batch_size:", args.batch_size)
 print("accumulate_grad_batches:", args.accumulate_grad_batches)
 print("lr:", args.lr)
 print("num_beams:", args.num_beams)
@@ -71,14 +67,16 @@ EXP_DIR_PATH = os.path.join("../EXPERIMENTS", args.exp_name)
 os.makedirs(EXP_DIR_PATH, exist_ok=True)
 
 
+
 # ----------------------------
 # Scorers
 # ----------------------------
 bleu_scorer = Bleu(n=4)
 rougel_scorer = Rouge(rouges=['rougeL'])
-f1cxb_scorer = myF1ChexBert()
+# f1cxb_scorer = myF1ChexBert()
 bert_scorer = BertScorer()
-radgraph_scorer = myRadGraph(reward_level='partial')
+# radgraph_scorer = myRadGraph(reward_level='partial')
+
 
 
 # ----------------------------
@@ -90,10 +88,6 @@ else:
     model, processor = build_model_and_processor()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-def count_trainable_parameters(m):
-    return sum(p.numel() for p in m.parameters() if p.requires_grad)
-print("Trainable params:", count_trainable_parameters(model))
 
 
 # ----------------------------
@@ -190,6 +184,8 @@ epoch_best_rg = 0
 epoch_best_f1cxb = 0
 epoch_best_bertscore = 0
 
+
+
 print("\n---- Start Training ----")
 for epoch in range(args.epochs):
 
@@ -204,6 +200,15 @@ for epoch in range(args.epochs):
             input_ids      = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels         = batch['labels'].to(device)
+            # print("prixel_values:\n\n")
+            # print(pixel_values)
+            # print("input_ids:\n\n")
+            # print(input_ids)
+            # print("attention_mask:\n\n")
+            # print(attention_mask)
+            # print("labels:\n\n")
+            # print(labels)
+            # exit()
 
             forward_kwargs = dict(
                 pixel_values=pixel_values,
@@ -211,6 +216,7 @@ for epoch in range(args.epochs):
                 attention_mask=attention_mask,
                 labels=labels
             )
+            
 
             # add regions if grounded
             if args.grounded and 'region_input_ids' in batch:
@@ -218,7 +224,8 @@ for epoch in range(args.epochs):
 
             outputs = model(**forward_kwargs)
             loss = outputs.loss
-
+            # print(loss)
+            
             loss.backward()
 
             if (step + 1) % args.accumulate_grad_batches == 0:
@@ -291,9 +298,9 @@ for epoch in range(args.epochs):
     # ========== Metrics ==========
     calculated_bleu = bleu_scorer(l_refs, l_hyps)[0]
     calculated_rougel = rougel_scorer(refs=l_refs, hyps=l_hyps)[0]
-    calculated_f1cxb = f1cxb_scorer.calculate(l_refs, l_hyps)
+    # calculated_f1cxb = f1cxb_scorer.calculate(l_refs, l_hyps)
     calculated_bertscore = bert_scorer(l_hyps, l_refs)
-    calculated_rg = radgraph_scorer(l_refs, l_hyps)
+    # calculated_rg = radgraph_scorer(l_refs, l_hyps)
 
     # ========== Checkpointing ==========
     def _save_model(tag: str):
@@ -301,26 +308,26 @@ for epoch in range(args.epochs):
         torch.save(model.state_dict(), path)
         return path
 
-    if calculated_f1cxb > best_f1cxb:
-        # remove previous best if exists
-        if epoch_best_f1cxb != 0:
-            try:
-                os.remove(os.path.join(EXP_DIR_PATH, f"best_f1cxb_epoch{epoch_best_f1cxb}.pt"))
-            except OSError:
-                pass
-        best_f1cxb = calculated_f1cxb
-        epoch_best_f1cxb = epoch
-        _save_model("best_f1cxb")
+    # if calculated_f1cxb > best_f1cxb:
+    #     # remove previous best if exists
+    #     if epoch_best_f1cxb != 0:
+    #         try:
+    #             os.remove(os.path.join(EXP_DIR_PATH, f"best_f1cxb_epoch{epoch_best_f1cxb}.pt"))
+    #         except OSError:
+    #             pass
+    #     best_f1cxb = calculated_f1cxb
+    #     epoch_best_f1cxb = epoch
+    #     _save_model("best_f1cxb")
 
-    if calculated_rg > best_rg:
-        if epoch_best_rg != 0:
-            try:
-                os.remove(os.path.join(EXP_DIR_PATH, f"best_rg_epoch{epoch_best_rg}.pt"))
-            except OSError:
-                pass
-        best_rg = calculated_rg
-        epoch_best_rg = epoch
-        _save_model("best_rg")
+    # if calculated_rg > best_rg:
+    #     if epoch_best_rg != 0:
+    #         try:
+    #             os.remove(os.path.join(EXP_DIR_PATH, f"best_rg_epoch{epoch_best_rg}.pt"))
+    #         except OSError:
+    #             pass
+    #     best_rg = calculated_rg
+    #     epoch_best_rg = epoch
+    #     _save_model("best_rg")
 
     if calculated_bertscore > best_bertscore:
         if epoch_best_bertscore != 0:
@@ -341,17 +348,17 @@ for epoch in range(args.epochs):
     print(f"\tVal   Loss: {val_loss:.6f}")
     print(f"\tBLEU4:      {calculated_bleu}")
     print(f"\tRougeL:     {calculated_rougel}")
-    print(f"\tF1cXb:      {calculated_f1cxb}")
+    # print(f"\tF1cXb:      {calculated_f1cxb}")
     print(f"\tBERTscore:  {calculated_bertscore}")
-    print(f"\tRadGraph:   {calculated_rg}")
+    # print(f"\tRadGraph:   {calculated_rg}")
 
     with open(os.path.join(EXP_DIR_PATH, "log.txt"), 'a') as f:
         f.write(f"EPOCH: {epoch}\n")
         f.write(f"\tBLEU4:\t\t{calculated_bleu}\n")
         f.write(f"\tRougeL:\t\t{calculated_rougel}\n")
-        f.write(f"\tF1cXb:\t\t{calculated_f1cxb}\n")
+        # f.write(f"\tF1cXb:\t\t{calculated_f1cxb}\n")
         f.write(f"\tBERTscore:\t{calculated_bertscore}\n")
-        f.write(f"\tRG:\t\t{calculated_rg}\n")
+        # f.write(f"\tRG:\t\t{calculated_rg}\n")
         f.write(f"\tTrLoss:\t\t{train_loss}\n")
         f.write(f"\tValLoss:\t{val_loss}\n")
         f.write("------------------------------\n")
