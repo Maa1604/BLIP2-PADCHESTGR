@@ -6,6 +6,7 @@ from transformers.modeling_outputs import BaseModelOutput
 
 
 #https://huggingface.co/docs/transformers/model_doc/blip-2#transformers.Blip2Model.forward
+#https://github.com/huggingface/transformers/blob/main/src/transformers/models/blip_2/modeling_blip_2.py#L1590
 class RegionBlip2ForConditionalGeneration(Blip2ForConditionalGeneration):
     """
     BLIP-2 with extra 'region tokens' that are concatenated to the query tokens for the Q-Former.
