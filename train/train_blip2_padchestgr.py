@@ -60,7 +60,7 @@ print("grounded:", args.grounded)
 print("train_csv:", args.train_csv)
 print("val_csv:", args.val_csv)
 print("epochs:", args.epochs)
-print("batch_size:", args.batch_size)
+print("batch_size:", atworgs.batch_size)
 print("accumulate_grad_batches:", args.accumulate_grad_batches)
 print("lr:", args.lr)
 print("num_beams:", args.num_beams)
@@ -133,6 +133,51 @@ val_loader = DataLoader(
 optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
 lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=2, factor=0.8)
 
+# ----------------------------
+# Saver
+# ----------------------------
+
+import pandas as pd
+import os
+
+def collect_and_save_predictions(hyps, refs, l_hyps, l_refs, batch, exp_dir, epoch):
+    """
+    Clean, collect, and save generated predictions for an epoch.
+
+    Args:
+        hyps (List[str]): raw generated hypotheses from model.generate().
+        refs (List[str]): raw reference texts from the batch.
+        l_hyps (List[str]): global list of hypotheses to extend.
+        l_refs (List[str]): global list of references to extend.
+        batch (Dict): current batch, used to fetch image_ids if available.
+        exp_dir (str): experiment directory path.
+        epoch (int): current epoch number.
+    """
+
+    # --- Clean up and collect ---
+    clean_hyps = [h.strip() for h in hyps]
+    clean_refs = [r.strip() for r in refs]
+    l_hyps.extend(clean_hyps)
+    l_refs.extend(clean_refs)
+
+    # Get image IDs if available
+    image_ids = batch.get("image_ids", [f"sample_{i}" for i in range(len(clean_hyps))])
+
+    # --- Save to CSV ---
+    os.makedirs(exp_dir, exist_ok=True)
+    csv_path = os.path.join(exp_dir, f"epoch_{epoch}_predictions.csv")
+
+    df = pd.DataFrame({
+        "image_id": image_ids,
+        "reference": clean_refs,
+        "hypothesis": clean_hyps
+    })
+
+    # Append if exists, else create
+    if not os.path.exists(csv_path):
+        df.to_csv(csv_path, index=False)
+    else:
+        df.to_csv(csv_path, index=False, mode='a', header=False)
 
 # ----------------------------
 # Training
@@ -237,9 +282,7 @@ for epoch in range(args.epochs):
                 hyps = processor.batch_decode(gen_ids, skip_special_tokens=True)
                 refs = batch['references']  # list[str] (bs=1 here)
 
-                # collect
-                l_hyps.extend([h.strip() for h in hyps])
-                l_refs.extend([r.strip() for r in refs])
+                collect_and_save_predictions(hyps, refs, l_hyps, l_refs, batch, EXP_DIR_PATH, epoch)
 
                 tepoch.set_postfix(loss=loss.item())
 
