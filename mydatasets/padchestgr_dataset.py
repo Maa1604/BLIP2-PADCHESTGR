@@ -32,7 +32,6 @@ def _parse_and_round_boxes_0_100(boxes_field: str) -> List[int]:
     for item in data:
         if not isinstance(item, (list, tuple)) or len(item) < 3:
             continue
-        # item = [idx, "caption", [[x1,y1,x2,y2], ...]]
         boxes = item[2]
         if not isinstance(boxes, (list, tuple)):
             continue
@@ -45,33 +44,17 @@ def _parse_and_round_boxes_0_100(boxes_field: str) -> List[int]:
                         out.append(0)
     return out
 
+
 def _open_image_as_8bit_rgb(path: str, p: float = 99.0) -> Image.Image:
     """
     Open an image and normalize it to 8-bit RGB using a p-th percentile cap.
-
-    Steps:
-      1) read with PIL
-      2) convert to float32 numpy array
-      3) divide by p-th percentile
-      4) clip to [0, 1]
-      5) scale to [0, 255] uint8
-      6) ensure 3-channel RGB (stack if needed)
-
-    Notes:
-      - Works with 8/16-bit, grayscale or multi-channel inputs.
-      - If input already has 3 channels, we normalize per-array (single scale)
-        and keep it 3-channel by reusing the original channels after scaling.
-        If it's 2D or single-channel, we stack to RGB.
     """
     img = Image.open(path)
     arr = np.array(img).astype(np.float32)
 
-    # Handle completely empty or degenerate arrays gracefully
     if arr.size == 0 or not np.isfinite(arr).any():
-        # Fallback: simple RGB conversion via PIL
         return img.convert("RGB")
 
-    # Compute percentile ignoring NaNs
     pth = np.nanpercentile(arr, p)
     if not np.isfinite(pth) or pth <= 0:
         pth = 1.0
@@ -79,26 +62,22 @@ def _open_image_as_8bit_rgb(path: str, p: float = 99.0) -> Image.Image:
     arr = np.clip(arr / (pth + 1e-8), 0.0, 1.0)
     arr8 = (arr * 255.0).astype(np.uint8)
 
-    # Ensure 3-channel output
     if arr8.ndim == 2:
-        # H x W -> H x W x 3
         rgb = np.stack([arr8, arr8, arr8], axis=-1)
     elif arr8.ndim == 3:
-        # If it already has channels:
         if arr8.shape[-1] == 3:
-            rgb = arr8  # keep as-is after normalization
+            rgb = arr8
         elif arr8.shape[-1] == 4:
-            # Drop alpha; convert to RGB
             rgb = arr8[..., :3]
         else:
-            # Unexpected channel count -> collapse to grayscale then stack
             g = arr8.mean(axis=-1).astype(np.uint8)
             rgb = np.stack([g, g, g], axis=-1)
     else:
-        # Fallback: convert via PIL and retry
         return img.convert("RGB")
 
     return Image.fromarray(rgb, mode="RGB")
+
+
 class PadChestDataset(Dataset):
     """
     - Normal (grounded=False): returns PIL image + report text.
@@ -121,7 +100,6 @@ class PadChestDataset(Dataset):
         row = self.df.iloc[idx]
         image_path = os.path.join(self.image_root, row["ImageID"])
         image = _open_image_as_8bit_rgb(image_path)
-        # image = Image.open(image_path).convert("RGB")
         text = str(row[self.text_col]).strip()
 
         ex = {
@@ -132,31 +110,26 @@ class PadChestDataset(Dataset):
         }
 
         if self.grounded:
-            # parse normalized boxes -> ints in [0..100]
             regions = _parse_and_round_boxes_0_100(str(row.get("boxes", "")))
-            ex["regions"] = regions  # flat list [x1,y1,x2,y2, x1,y1,x2,y2, ...] as ints
+            ex["regions"] = regions  # flat list [x1,y1,x2,y2, ...] as ints
 
-        # print(ex)
-        # exit()
         return ex
 
     # ---------- collate fn builder ----------
     def build_collate_fn(self, processor: Any):
         """
         Returns a callable suitable for HuggingFace Trainer's data_collator.
-        Uses the provided processor to batch images + texts and create labels.
-        If grounded=True, also creates 'region_input_ids' by tokenizing a simple
-        space-separated string of the rounded [0..100] box coordinates.
         """
         def _collate(examples: List[Dict[str, Any]]) -> Dict[str, Any]:
             images = [ex["image"] for ex in examples]
             texts = [ex["text"] for ex in examples]
+            image_ids = [ex["image_id"] for ex in examples]
 
             batch = processor(
                 images=images,
                 text=texts,
                 padding=True,
-                return_tensors="pt"
+                return_tensors="pt",
             )
 
             # Create labels from input_ids, mask padding with -100
@@ -171,14 +144,17 @@ class PadChestDataset(Dataset):
             labels[labels == pad_id] = -100
             batch["labels"] = labels
 
+            # Keep texts and ids for evaluation/logging
+            batch["references"] = texts  # list[str] for scorers
+            batch["image_ids"] = image_ids  # list[str]
+
             # If grounded, build region_input_ids
             if self.grounded:
-                # Build a simple string per sample like "52 55 80 83 51 54 79 84"
                 region_texts = []
                 for ex in examples:
                     coords = ex.get("regions", [])
                     if not coords:
-                        region_texts.append("")  # empty → will tokenize to nothing
+                        region_texts.append("")
                     else:
                         region_texts.append(" ".join(str(v) for v in coords))
 
@@ -188,8 +164,7 @@ class PadChestDataset(Dataset):
                     return_tensors="pt",
                     add_special_tokens=False,
                 )
-                # LongTensor [B, W_len_tokens]
-                batch["region_input_ids"] = tok["input_ids"]
+                batch["region_input_ids"] = tok["input_ids"]  # LongTensor [B, W_len_tokens]
 
             return batch
 
