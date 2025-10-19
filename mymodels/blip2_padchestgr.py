@@ -10,11 +10,11 @@ def build_model_and_processor():
     Returns: (model, processor)
     """
     # Processor
-    processor = Blip2Processor.from_pretrained("Salesforce/blip2-opt-2.7b")
+    processor = Blip2Processor.from_pretrained("Salesforce/blip2-flan-t5-xl")
 
     # Base model (8-bit, sharded)
     model = Blip2ForConditionalGeneration.from_pretrained(
-        "Salesforce/blip2-opt-2.7b",   #Salesforce/blip2-opt-2.7b
+        "Salesforce/blip2-flan-t5-xl",   #Salesforce/blip2-opt-2.7b
         device_map="auto",
         dtype=torch.bfloat16, #hace falta para poder entrenar (only Tensors of floating point dtype can require gradients)
         # load_in_8bit=True

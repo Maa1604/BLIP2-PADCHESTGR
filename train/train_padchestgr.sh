@@ -8,10 +8,10 @@ set -euo pipefail
 PYTHON=${PYTHON:-python}
 
 # Experiment name (change as needed)
-EXP_NAME="blip2_grounded_padchestgr"    # e.g. "blip2_base_padchestgr"
+EXP_NAME="blip2_padchestgr_5"    # e.g. "blip2_base_padchestgr"
 
 # Grounded mode: true = RegionBlip2, false = plain BLIP-2
-GROUNDED=true
+GROUNDED=false
 
 # Training hyperparameters
 EPOCHS=30
@@ -19,7 +19,7 @@ BATCH_SIZE=4
 ACCUM=32
 LR=3e-4
 NUM_BEAMS=2
-MAX_NEW_TOKENS=128
+MAX_NEW_TOKENS=128    #41 words is the longest in padchestgr
 SAVE_EVERY=0
 
 # ============================================================

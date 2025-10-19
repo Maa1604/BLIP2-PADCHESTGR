@@ -222,6 +222,19 @@ for epoch in range(args.epochs):
             if args.grounded and 'region_input_ids' in batch:
                 forward_kwargs['region_input_ids'] = batch['region_input_ids'].to(device)
 
+            # print("prixel_values:\n\n")
+            # print(pixel_values)
+            # print("input_ids:\n\n")
+            # print(input_ids)
+            # print("attention_mask:\n\n")
+            # print(attention_mask)
+            # print("labels:\n\n")
+            # print(labels.shape)
+            # print("region_input_ids:\n\n")
+            # print(batch['region_input_ids'])
+            # print(batch['region_input_ids'].shape)
+            # exit()
+
             outputs = model(**forward_kwargs)
             loss = outputs.loss
             # print(loss)
