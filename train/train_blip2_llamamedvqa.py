@@ -236,8 +236,9 @@ for epoch in range(args.epochs):
         optimizer.zero_grad()
 
     # Normalize by number of optimizer steps (roughly)
-    steps_per_epoch = max(1, len(train_loader) // max(1, args.accumulate_grad_batches))
-    train_loss /= steps_per_epoch
+    # steps_per_epoch = max(1, len(train_loader) // max(1, args.accumulate_grad_batches))
+    # train_loss /= steps_per_epoch
+    train_loss /= (len(train_loader.dataset) // args.batch_size)
 
     # ========== Validation ==========
     model.eval()
