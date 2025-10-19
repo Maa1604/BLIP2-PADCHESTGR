@@ -19,13 +19,10 @@ from myscorers.bertscore.bertscore import BertScorer
 # from myscorers.chexbert.chexbert import myF1ChexBert
 # from myscorers.myradgraph.myradgraph import myRadGraph
 
-from paths import DICT_CSV_PADCHESTGR_PATH
+from paths import DICT_CSV_LLAMAMEDVQA_PATH
 
-from mydatasets.padchestgr_dataset import PadChestDataset
-from mymodels.blip2_padchestgr import (
-    build_model_and_processor,
-    build_grounding_model_and_processor,
-)
+from mydatasets.llamamedvqa_dataset import LlamaMedVQADataset
+from mymodels.blip2_padchestgr import build_model_and_processor
 
 torch.set_float32_matmul_precision('medium')
 
@@ -45,8 +42,8 @@ parser.add_argument('--save_every', type=int, default=0, help='If >0, additional
 parser.add_argument('--max_new_tokens', type=int, default=128, help='Max tokens for generation.')
 parser.add_argument('--num_beams', type=int, default=2, help='Beams for generation.')
 
-train_csv = DICT_CSV_PADCHESTGR_PATH["train"]
-val_csv   = DICT_CSV_PADCHESTGR_PATH["validation"]
+train_csv = DICT_CSV_LLAMAMEDVQA_PATH["train"]
+val_csv   = DICT_CSV_LLAMAMEDVQA_PATH["validation"]
 
 
 args = parser.parse_args()
@@ -87,8 +84,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # ----------------------------
 # Dataset & DataLoaders
 # ----------------------------
-train_ds = PadChestDataset(csv_path=train_csv, grounded=args.grounded)
-val_ds   = PadChestDataset(csv_path=val_csv, grounded=args.grounded)
+train_ds = LlamaMedVQADataset(csv_path=train_csv)
+val_ds   = LlamaMedVQADataset(csv_path=val_csv)
 
 train_collate = train_ds.build_collate_fn(processor)
 val_collate   = val_ds.build_collate_fn(processor)
@@ -211,16 +208,6 @@ for epoch in range(args.epochs):
                 labels=labels
             )
 
-            # print("prixel_values:\n\n")
-            # print(pixel_values)
-            # print("input_ids:\n\n")
-            # print(input_ids)
-            # print("attention_mask:\n\n")
-            # print(attention_mask)
-            # print("labels:\n\n")
-            # print(labels)
-            # exit()
-
             outputs = model(**forward_kwargs)
             loss = outputs.loss
             # print(loss)
@@ -269,6 +256,8 @@ for epoch in range(args.epochs):
                 # ---- generation ----
                 gen_ids = model.generate(
                     pixel_values=pixel_values,
+                    input_ids=input_ids,               # <— ADD
+                    attention_mask=attention_mask,     # <— ADD
                     num_beams=args.num_beams,
                     max_new_tokens=args.max_new_tokens,
                     do_sample=False
