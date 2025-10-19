@@ -14,6 +14,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.abspath(os.getcwd()), os.pa
 
 # ---- your modules / paths ----
 from myscorers.bleu.bleu import Bleu
+from myscorers.meteor.meteor import Meteor
+from myscorers.cider.cider import Cider
 from myscorers.rouge.rouge import Rouge
 from myscorers.bertscore.bertscore import BertScorer
 from myscorers.chexbert.chexbert import myF1ChexBert
@@ -70,6 +72,8 @@ bleu_scorer1 = Bleu(n=1)
 bleu_scorer2 = Bleu(n=2)
 bleu_scorer3 = Bleu(n=3)
 bleu_scorer4 = Bleu(n=4)
+meteor_scorer = Meteor()
+cider_scorer = Cider(n=4, sigma=6.0)
 rougel_scorer = Rouge(rouges=['rougeL'])
 f1cxb_scorer = myF1ChexBert()
 bert_scorer = BertScorer()
@@ -287,6 +291,14 @@ for epoch in range(args.epochs):
     calculated_bertscore = bert_scorer(l_hyps, l_refs)
     calculated_rg = radgraph_scorer(l_refs, l_hyps)
 
+    
+    
+    # CIDEr
+    gts = {i: [ref] for i, ref in enumerate(l_refs)}
+    res = {i: [hyp] for i, hyp in enumerate(l_hyps)}
+    calculated_cider, _ = cider_scorer.compute_score(gts=gts, res=res)
+    calculated_meteor, _ = meteor_scorer.compute_score(gts=gts, res=res)
+
     # ========== Checkpointing ==========
     def _save_model(tag: str):
         path = os.path.join(EXP_DIR_PATH, f"{tag}_epoch{epoch}.pt")
@@ -338,6 +350,8 @@ for epoch in range(args.epochs):
     print(f"\tRougeL:     {calculated_rougel}")
     print(f"\tF1cXb:      {calculated_f1cxb}")
     print(f"\tBERTscore:  {calculated_bertscore}")
+    print(f"\tMETEOR:  {calculated_meteor}")
+    print(f"\tCIDER:  {calculated_cider}")
     print(f"\tRadGraph:   {calculated_rg}")
 
     with open(os.path.join(EXP_DIR_PATH, "log.txt"), 'a') as f:
@@ -349,6 +363,8 @@ for epoch in range(args.epochs):
         f.write(f"\tRougeL:\t\t{calculated_rougel}\n")
         f.write(f"\tF1cXb:\t\t{calculated_f1cxb}\n")
         f.write(f"\tBERTscore:\t{calculated_bertscore}\n")
+        f.write(f"\tMETEOR:\t{calculated_meteor}\n")
+        f.write(f"\tCIDER:\t{calculated_cider}\n")
         f.write(f"\tRG:\t\t{calculated_rg}\n")
         f.write(f"\tTrLoss:\t\t{train_loss}\n")
         f.write(f"\tValLoss:\t{val_loss}\n")
