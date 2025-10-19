@@ -146,14 +146,17 @@ def collect_and_save_predictions(hyps, refs, l_hyps, l_refs, batch, exp_dir, epo
     l_refs.extend(clean_refs)
 
     # Get image IDs if available
-    image_ids = batch.get("image_ids", [f"sample_{i}" for i in range(len(clean_hyps))])
+    questions = batch.get("questions", [""] * len(clean_hyps))
+    image_ids = batch.get("image_paths", [f"sample_{i}" for i in range(len(clean_hyps))])
+
 
     # --- Save to CSV ---
     os.makedirs(exp_dir, exist_ok=True)
     csv_path = os.path.join(exp_dir, f"epoch_{epoch}_predictions.csv")
 
     df = pd.DataFrame({
-        "image_id": image_ids,
+        "image_path": image_ids,
+        "question": questions,
         "reference": clean_refs,
         "hypothesis": clean_hyps
     })

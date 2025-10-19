@@ -28,26 +28,82 @@ class LlamaMedVQADataset(Dataset):
 
     def __len__(self):
         return len(self.df)
+    
+    @staticmethod
+    def _split_csv_field(val: Optional[str]) -> List[str]:
+        """
+        Split a comma-separated cell into a list, trimming whitespace.
+        Robust to NaN/None. Does NOT attempt to parse nested commas in paths
+        because the CSV example uses quotes correctly.
+        """
+        if val is None or (isinstance(val, float) and pd.isna(val)):
+            return []
+        # ensure string, strip surrounding quotes, then split
+        s = str(val).strip().strip('"').strip("'")
+        # allow both comma and semicolon just in case
+        parts = [p.strip() for p in s.replace(";", ",").split(",") if p.strip() != ""]
+        return parts if parts else []
+
+    @staticmethod
+    def _choose_index_by_view(views: List[str]) -> int:
+        """
+        Return the first index whose view is AP or PA (case-insensitive).
+        If none found or views is empty, return 0.
+        """
+        targets = {"ap", "pa"}
+        for i, v in enumerate(views):
+            if str(v).strip().lower() in targets:
+                return i
+        return 0
+
+    def _resolve_image_path(self, rel_or_abs: str) -> str:
+        """Return absolute path for an image path that may be relative to image_root."""
+        return rel_or_abs if os.path.isabs(rel_or_abs) else os.path.join(self.image_root, rel_or_abs)
+
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        
-        # image path can be absolute or relative to image_root
-        img_path = row["image_path"]
-        if not os.path.isabs(img_path):
-            img_path = os.path.join(self.image_root, img_path)
 
-        image = Image.open(img_path).convert("RGB")
+
+        # Parse image paths (may be one or many)
+        img_cells = self._split_csv_field(row["image_path"])
+
+        # Parse view positions (aligned order if present)
+        views = self._split_csv_field(row.get("view_position", None))
+
+        # Choose index: first AP/PA if possible, else 0
+        pick_idx = self._choose_index_by_view(views) if img_cells else 0
+        if pick_idx >= len(img_cells):
+            # views length may exceed or not match images; clamp
+            pick_idx = 0
+
+        chosen_rel = img_cells[pick_idx] if img_cells else str(row["image_path"])
+        chosen_path = self._resolve_image_path(chosen_rel)
+        
+        # Load image
+        image = Image.open(chosen_path).convert("RGB")
+
+        # Texts
         question = str(row["question"]).strip()
         answer = str(row["answer"]).strip()
-
         prompt = self.prompt_template.format(q=question)
+
+        # Optional: keep which view we picked (helpful for debugging/analysis)
+        # chosen_view = views[pick_idx] if views and pick_idx < len(views) else None
+
+        # print(f"image_path: {chosen_rel}")
+        # # print(f"chosen_view: {chosen_view}")
+        # print(f"question: {question}")
+        # print(f"answer: {answer}")
+        # print(f"prompt: {prompt}")
+        # print(f"-------------\n")
+        # exit()
 
         return {
             "image": image,
             "prompt": prompt,
             "answer": answer,
-            "image_path": row["image_path"],
+            "image_path": chosen_rel,
             "question": question,
         }
 
