@@ -33,10 +33,9 @@ torch.set_float32_matmul_precision('medium')
 # ----------------------------
 # Args
 # ----------------------------
-parser = argparse.ArgumentParser(description="Train BLIP-2 / Region-BLIP-2 on PadChestGR")
+parser = argparse.ArgumentParser(description="Train BLIP-2 on LLaMA-MedVQA")
 
 parser.add_argument('--exp_name', type=str, required=True, help='Experiment name.')
-parser.add_argument('--grounded', action='store_true', help='Use Region-BLIP-2 with region_input_ids.')
 parser.add_argument('--epochs', type=int, default=30)
 parser.add_argument('--batch_size', type=int, default=4)
 parser.add_argument('--accumulate_grad_batches', type=int, default=32)
@@ -54,7 +53,6 @@ args = parser.parse_args()
 
 print("*" * 20)
 print("exp_name:", args.exp_name)
-print("grounded:", args.grounded)
 print("epochs:", args.epochs)
 print("batch_size:", args.batch_size)
 print("accumulate_grad_batches:", args.accumulate_grad_batches)
@@ -82,11 +80,7 @@ bert_scorer = BertScorer()
 # ----------------------------
 # Model & Processor
 # ----------------------------
-if args.grounded:
-    model, processor = build_grounding_model_and_processor()
-else:
-    model, processor = build_model_and_processor()
-
+model, processor = build_model_and_processor()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
@@ -216,11 +210,6 @@ for epoch in range(args.epochs):
                 attention_mask=attention_mask,
                 labels=labels
             )
-            
-
-            # add regions if grounded
-            if args.grounded and 'region_input_ids' in batch:
-                forward_kwargs['region_input_ids'] = batch['region_input_ids'].to(device)
 
             # print("prixel_values:\n\n")
             # print(pixel_values)
@@ -229,10 +218,7 @@ for epoch in range(args.epochs):
             # print("attention_mask:\n\n")
             # print(attention_mask)
             # print("labels:\n\n")
-            # print(labels.shape)
-            # print("region_input_ids:\n\n")
-            # print(batch['region_input_ids'])
-            # print(batch['region_input_ids'].shape)
+            # print(labels)
             # exit()
 
             outputs = model(**forward_kwargs)
@@ -275,29 +261,17 @@ for epoch in range(args.epochs):
                     attention_mask=attention_mask,
                     labels=labels
                 )
-                if args.grounded and 'region_input_ids' in batch:
-                    forward_kwargs['region_input_ids'] = batch['region_input_ids'].to(device)
 
                 out = model(**forward_kwargs)
                 loss = out.loss
                 val_loss += loss.item()
 
                 # ---- generation ----
-                gen_kwargs = dict(
+                gen_ids = model.generate(
+                    pixel_values=pixel_values,
                     num_beams=args.num_beams,
                     max_new_tokens=args.max_new_tokens,
                     do_sample=False
-                )
-
-                generate_kwargs = {}
-                if args.grounded and 'region_input_ids' in batch:
-                    generate_kwargs['region_input_ids'] = batch['region_input_ids'].to(device)
-
-                # For BLIP-2, providing only images is okay (it will prepend placeholders + BOS).
-                gen_ids = model.generate(
-                    pixel_values=pixel_values,
-                    **generate_kwargs,
-                    **gen_kwargs
                 )
                 hyps = processor.batch_decode(gen_ids, skip_special_tokens=True)
                 refs = batch['references']  # list[str] (bs=1 here)
