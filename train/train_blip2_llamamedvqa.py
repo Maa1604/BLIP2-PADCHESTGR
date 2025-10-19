@@ -16,8 +16,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.abspath(os.getcwd()), os.pa
 from myscorers.bleu.bleu import Bleu
 from myscorers.rouge.rouge import Rouge
 from myscorers.bertscore.bertscore import BertScorer
-# from myscorers.chexbert.chexbert import myF1ChexBert
-# from myscorers.myradgraph.myradgraph import myRadGraph
+from myscorers.chexbert.chexbert import myF1ChexBert
+from myscorers.myradgraph.myradgraph import myRadGraph
 
 from paths import DICT_CSV_LLAMAMEDVQA_PATH
 
@@ -43,7 +43,7 @@ parser.add_argument('--max_new_tokens', type=int, default=128, help='Max tokens 
 parser.add_argument('--num_beams', type=int, default=2, help='Beams for generation.')
 
 train_csv = DICT_CSV_LLAMAMEDVQA_PATH["train"]
-val_csv   = DICT_CSV_LLAMAMEDVQA_PATH["validation"]
+val_csv   = DICT_CSV_LLAMAMEDVQA_PATH["test"]
 
 
 args = parser.parse_args()
@@ -66,11 +66,14 @@ os.makedirs(EXP_DIR_PATH, exist_ok=True)
 # ----------------------------
 # Scorers
 # ----------------------------
-bleu_scorer = Bleu(n=4)
+bleu_scorer1 = Bleu(n=1)
+bleu_scorer2 = Bleu(n=2)
+bleu_scorer3 = Bleu(n=3)
+bleu_scorer4 = Bleu(n=4)
 rougel_scorer = Rouge(rouges=['rougeL'])
-# f1cxb_scorer = myF1ChexBert()
+f1cxb_scorer = myF1ChexBert()
 bert_scorer = BertScorer()
-# radgraph_scorer = myRadGraph(reward_level='partial')
+radgraph_scorer = myRadGraph(reward_level='partial')
 
 
 
@@ -275,11 +278,14 @@ for epoch in range(args.epochs):
     val_loss /= len(val_loader)
 
     # ========== Metrics ==========
-    calculated_bleu = bleu_scorer(l_refs, l_hyps)[0]
+    calculated_bleu1 = bleu_scorer1(l_refs, l_hyps)[0]
+    calculated_bleu2 = bleu_scorer2(l_refs, l_hyps)[0]
+    calculated_bleu3 = bleu_scorer3(l_refs, l_hyps)[0]
+    calculated_bleu4 = bleu_scorer4(l_refs, l_hyps)[0]
     calculated_rougel = rougel_scorer(refs=l_refs, hyps=l_hyps)[0]
-    # calculated_f1cxb = f1cxb_scorer.calculate(l_refs, l_hyps)
+    calculated_f1cxb = f1cxb_scorer.calculate(l_refs, l_hyps)
     calculated_bertscore = bert_scorer(l_hyps, l_refs)
-    # calculated_rg = radgraph_scorer(l_refs, l_hyps)
+    calculated_rg = radgraph_scorer(l_refs, l_hyps)
 
     # ========== Checkpointing ==========
     def _save_model(tag: str):
@@ -325,19 +331,25 @@ for epoch in range(args.epochs):
     print(f"\nEpoch {epoch}")
     print(f"\tTrain Loss: {train_loss:.6f}")
     print(f"\tVal   Loss: {val_loss:.6f}")
-    print(f"\tBLEU4:      {calculated_bleu}")
+    print(f"\tBLEU1:      {calculated_bleu1}")
+    print(f"\tBLEU2:      {calculated_bleu2}")
+    print(f"\tBLEU3:      {calculated_bleu3}")
+    print(f"\tBLEU4:      {calculated_bleu4}")
     print(f"\tRougeL:     {calculated_rougel}")
-    # print(f"\tF1cXb:      {calculated_f1cxb}")
+    print(f"\tF1cXb:      {calculated_f1cxb}")
     print(f"\tBERTscore:  {calculated_bertscore}")
-    # print(f"\tRadGraph:   {calculated_rg}")
+    print(f"\tRadGraph:   {calculated_rg}")
 
     with open(os.path.join(EXP_DIR_PATH, "log.txt"), 'a') as f:
         f.write(f"EPOCH: {epoch}\n")
-        f.write(f"\tBLEU4:\t\t{calculated_bleu}\n")
+        f.write(f"\tBLEU1:\t\t{calculated_bleu1}\n")
+        f.write(f"\tBLEU2:\t\t{calculated_bleu2}\n")
+        f.write(f"\tBLEU3:\t\t{calculated_bleu3}\n")
+        f.write(f"\tBLEU4:\t\t{calculated_bleu4}\n")
         f.write(f"\tRougeL:\t\t{calculated_rougel}\n")
-        # f.write(f"\tF1cXb:\t\t{calculated_f1cxb}\n")
+        f.write(f"\tF1cXb:\t\t{calculated_f1cxb}\n")
         f.write(f"\tBERTscore:\t{calculated_bertscore}\n")
-        # f.write(f"\tRG:\t\t{calculated_rg}\n")
+        f.write(f"\tRG:\t\t{calculated_rg}\n")
         f.write(f"\tTrLoss:\t\t{train_loss}\n")
         f.write(f"\tValLoss:\t{val_loss}\n")
         f.write("------------------------------\n")

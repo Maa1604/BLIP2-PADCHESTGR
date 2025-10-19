@@ -20,3 +20,6 @@ protobuf<5.0.0
 # (Tus scorers ya existen en myscorers/)
 rouge-score>=0.1.2
 bert-score>=0.3.13
+
+
+#falta torch gdown radgraph
